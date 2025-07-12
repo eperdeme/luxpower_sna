@@ -9,7 +9,7 @@ namespace luxpower_sna {
 // Switch entity for controlling inverter features
 class LuxPowerSwitch : public Component {
  public:
-  void write_state(bool state) override;
+  void write_state(bool state);
   void set_parent(class LuxpowerSNAComponent *parent) { parent_ = parent; }
   void set_register(uint16_t reg) { register_ = reg; }
   void set_bitmask(uint16_t bitmask) { bitmask_ = bitmask; }
@@ -22,7 +22,7 @@ class LuxPowerSwitch : public Component {
 // Number entity for setting values (e.g., voltage, current, percentage)
 class LuxPowerNumber : public Component {
  public:
-  void control(float value) override;
+  void control(float value);
   void set_parent(class LuxpowerSNAComponent *parent) { parent_ = parent; }
   void set_register(uint16_t reg) { register_ = reg; }
   void set_scale(float scale) { scale_ = scale; }
@@ -37,7 +37,7 @@ class LuxPowerNumber : public Component {
 // Button entity for triggering actions (e.g., reconnect, restart)
 class LuxPowerButton : public Component {
  public:
-  void press_action() override;
+  void press_action();
   void set_parent(class LuxpowerSNAComponent *parent) { parent_ = parent; }
   void set_action(const std::string &action) { action_ = action; }
  protected:

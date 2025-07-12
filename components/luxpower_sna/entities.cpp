@@ -19,7 +19,7 @@ void LuxPowerSwitch::write_state(bool state) {
     }
     parent_->write_register(register_, value, bitmask_);
   }
-  this->publish_state(state);
+  // No publish_state: state management is handled by the parent component or via custom logic
 }
 
 // Number entity: set value to inverter register
@@ -37,7 +37,7 @@ void LuxPowerNumber::control(float value) {
       parent_->write_register(register_, reg_value, 0);
     }
   }
-  this->publish_state(value);
+  // No publish_state: state management is handled by the parent component or via custom logic
 }
 
 // Button entity: trigger action (e.g., reconnect, restart)

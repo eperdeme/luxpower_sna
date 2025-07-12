@@ -598,13 +598,7 @@ void LuxpowerSNAComponent::set_all_entities_unavailable_() {
   for (auto &kv : string_sensors_) {
     if (kv.second) kv.second->publish_state("");
   }
-  for (auto &kv : switches_) {
-    if (kv.second) kv.second->publish_state(false);
-  }
-  for (auto &kv : numbers_) {
-    if (kv.second) kv.second->publish_state(NAN);
-  }
-  // Buttons and time entities typically do not have availability, but could be extended if needed
+  // Only mark sensors and text_sensors unavailable; custom entities do not have publish_state
 }
 
 void LuxpowerSNAComponent::set_all_entities_available_() {
