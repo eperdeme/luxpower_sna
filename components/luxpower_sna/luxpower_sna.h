@@ -301,7 +301,11 @@ class LuxpowerSNAComponent : public PollingComponent {
   std::queue<std::pair<std::string, std::string>> string_publish_queue_;
   bool float_publishing_{false};
   bool string_publishing_{false};
+  // Event/state management
+  void set_all_entities_unavailable_();
+  void set_all_entities_available_();
 };
+
 
 }  // namespace luxpower_sna
 }  // namespace esphome
