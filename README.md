@@ -77,6 +77,25 @@ You can trigger the following services via ESPHome or Home Assistant:
 - `reset_settings`
 - `sync_time`
 - `refresh_data`
+- `write_register` (custom service for direct register writes)
+
+### Example: Write Register from YAML
+
+You can call the `write_register` service from ESPHome automations or Home Assistant scripts:
+
+```yaml
+# Example: Set charge voltage register to 54.0 (scaled by 10)
+script:
+  - id: set_charge_voltage
+    then:
+      - service: luxpower_sna.write_register
+        data:
+          register: 0x20
+          value: 540
+          bitmask: 0
+```
+
+You can use this in automations, scripts, or call it from the Home Assistant UI.
 
 ## Testing
 

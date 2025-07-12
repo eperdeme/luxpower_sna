@@ -26,6 +26,9 @@ void LuxpowerSNAComponent::setup() {
   this->tcp_client_ = new AsyncClient();
   this->tcp_client_->setRxTimeout(15000);
 
+  // Register custom service for writing registers
+  register_service(&LuxpowerSNAComponent::service_write_register_, "write_register", {"register", "value", "bitmask"});
+
   this->tcp_client_->onData([this](void *arg, AsyncClient *client, void *data, size_t len) {
     this->log_hex_buffer("<- Received", static_cast<uint8_t *>(data), len);
     this->handle_response_(static_cast<uint8_t *>(data), len);
@@ -55,13 +58,18 @@ void LuxpowerSNAComponent::setup() {
 
   this->tcp_client_->onDisconnect([this](void *arg, AsyncClient *client) {
     ESP_LOGD(TAG, "Disconnected");
-    this->set_all_entities_unavailable_();
+    // Do not mark entities unavailable on normal disconnect; only on error/timeout
   });
   
   this->tcp_client_->onTimeout([this](void *arg, AsyncClient *client, uint32_t time) {
     ESP_LOGW(TAG, "Timeout after %d ms", time);
     client->close();
   });
+}
+
+void LuxpowerSNAComponent::service_write_register_(int reg, int value, int bitmask) {
+  ESP_LOGI(TAG, "Service: write_register(reg=0x%04X, value=0x%04X, bitmask=0x%04X)", reg, value, bitmask);
+  this->write_register(static_cast<uint16_t>(reg), static_cast<uint16_t>(value), static_cast<uint16_t>(bitmask));
 }
 
 void LuxpowerSNAComponent::dump_config() {
