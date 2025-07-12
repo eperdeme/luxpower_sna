@@ -160,6 +160,22 @@ class LuxpowerSNAComponent : public PollingComponent {
   void set_dongle_serial(const std::string &serial) { this->dongle_serial_ = serial; }
   void set_inverter_serial_number(const std::string &serial) { this->inverter_serial_ = serial; }
 
+  // Entity registration
+  void register_switch(const std::string &key, class LuxPowerSwitch *sw) { this->switches_[key] = sw; }
+  void register_number(const std::string &key, class LuxPowerNumber *num) { this->numbers_[key] = num; }
+  void register_button(const std::string &key, class LuxPowerButton *btn) { this->buttons_[key] = btn; }
+  void register_time(const std::string &key, class LuxPowerTime *tm) { this->times_[key] = tm; }
+
+  // Register write interface for entities
+  void write_register(uint16_t reg, uint16_t value, uint16_t bitmask = 0);
+
+  // Service helpers (stubs)
+  void service_reconnect();
+  void service_restart();
+  void service_reset_settings();
+  void service_sync_time();
+  void service_refresh_data();
+
   // Sensor Setters
   void set_pv1_voltage_sensor(sensor::Sensor *s) { this->float_sensors_["pv1_voltage"] = s; }
   void set_pv2_voltage_sensor(sensor::Sensor *s) { this->float_sensors_["pv2_voltage"] = s; }
@@ -269,7 +285,13 @@ class LuxpowerSNAComponent : public PollingComponent {
   AsyncClient *tcp_client_{nullptr};
   std::map<std::string, sensor::Sensor *> float_sensors_;
   std::map<std::string, text_sensor::TextSensor *> string_sensors_;
-  
+
+  // New entity maps
+  std::map<std::string, class LuxPowerSwitch *> switches_;
+  std::map<std::string, class LuxPowerNumber *> numbers_;
+  std::map<std::string, class LuxPowerButton *> buttons_;
+  std::map<std::string, class LuxPowerTime *> times_;
+
   // Bank management
   uint8_t next_bank_to_request_{0};
   const uint8_t banks_[5] = {0, 40, 80, 120, 160};

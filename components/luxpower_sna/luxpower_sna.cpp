@@ -45,6 +45,18 @@ void LuxpowerSNAComponent::setup() {
   this->tcp_client_->onDisconnect([this](void *arg, AsyncClient *client) { 
     ESP_LOGD(TAG, "Disconnected"); 
   });
+
+  // On error or disconnect, mark all entities unavailable
+  this->tcp_client_->onError([this](void *arg, AsyncClient *client, int8_t error) {
+    ESP_LOGW(TAG, "Connection error: %s", client->errorToString(error));
+    this->set_all_entities_unavailable_();
+    client->close();
+  });
+
+  this->tcp_client_->onDisconnect([this](void *arg, AsyncClient *client) {
+    ESP_LOGD(TAG, "Disconnected");
+    this->set_all_entities_unavailable_();
+  });
   
   this->tcp_client_->onTimeout([this](void *arg, AsyncClient *client, uint32_t time) {
     ESP_LOGW(TAG, "Timeout after %d ms", time);
@@ -290,6 +302,8 @@ void LuxpowerSNAComponent::handle_response_(const uint8_t *buffer, size_t length
 
   // Cycle through banks: 0 → 40 → 80 → 120 → 160 → 0
   next_bank_to_request_ = (next_bank_to_request_ + 1) % 5;
+  // On successful data receipt, mark all entities available
+  this->set_all_entities_available_();
 }
 
 uint16_t LuxpowerSNAComponent::calculate_crc_(const uint8_t *data, size_t len) {
@@ -356,5 +370,252 @@ void LuxpowerSNAComponent::process_next_string_() {
   });
 }
   
+// Register write interface (stub)
+void LuxpowerSNAComponent::write_register(uint16_t reg, uint16_t value, uint16_t bitmask) {
+  ESP_LOGI(TAG, "write_register called: reg=0x%04X, value=0x%04X, bitmask=0x%04X", reg, value, bitmask);
+  // TODO: Implement packet construction and sending for register write
+}
+
+// Service helpers (stubs)
+void LuxpowerSNAComponent::service_reconnect() {
+  ESP_LOGI(TAG, "service_reconnect called");
+  // Send a reconnect command packet (device function 0x10 as example)
+  uint8_t pkt[38] = {
+    0xA1, 0x1A,       // Prefix
+    0x02, 0x00,       // Protocol version 2
+    0x20, 0x00,       // Frame length (32)
+    0x01,             // Address
+    0xC2,             // Function (TRANSLATED_DATA)
+    // Dongle serial (10 bytes) - filled below
+    0,0,0,0,0,0,0,0,0,0,
+    0x12, 0x00,       // Data length (18)
+    // Data frame starts here
+    0x00,             // Address action
+    0x10,             // Device function (RECONNECT, example)
+    // Inverter serial (10 bytes) - filled below
+    0,0,0,0,0,0,0,0,0,0,
+    // Register and value (not used for reconnect, set to 0)
+    0x00, 0x00, 0x00, 0x00
+  };
+  memcpy(pkt + 8, this->dongle_serial_.c_str(), 10);
+  memcpy(pkt + 22, this->inverter_serial_.c_str(), 10);
+  uint16_t crc = calculate_crc_(pkt + 20, 16);
+  pkt[36] = crc & 0xFF;
+  pkt[37] = crc >> 8;
+  log_hex_buffer("-> Reconnect", pkt, sizeof(pkt));
+  if (this->tcp_client_ && this->tcp_client_->space() > sizeof(pkt)) {
+    this->tcp_client_->add(reinterpret_cast<const char *>(pkt), sizeof(pkt));
+    this->tcp_client_->send();
+  } else {
+    ESP_LOGW(TAG, "TCP buffer full or client not ready");
+    if (this->tcp_client_) this->tcp_client_->close();
+  }
+}
+void LuxpowerSNAComponent::service_restart() {
+  ESP_LOGI(TAG, "service_restart called");
+  // Send a restart command packet (device function 0x11 as example)
+  uint8_t pkt[38] = {
+    0xA1, 0x1A,       // Prefix
+    0x02, 0x00,       // Protocol version 2
+    0x20, 0x00,       // Frame length (32)
+    0x01,             // Address
+    0xC2,             // Function (TRANSLATED_DATA)
+    // Dongle serial (10 bytes) - filled below
+    0,0,0,0,0,0,0,0,0,0,
+    0x12, 0x00,       // Data length (18)
+    // Data frame starts here
+    0x00,             // Address action
+    0x11,             // Device function (RESTART, example)
+    // Inverter serial (10 bytes) - filled below
+    0,0,0,0,0,0,0,0,0,0,
+    // Register and value (not used for restart, set to 0)
+    0x00, 0x00, 0x00, 0x00
+  };
+  memcpy(pkt + 8, this->dongle_serial_.c_str(), 10);
+  memcpy(pkt + 22, this->inverter_serial_.c_str(), 10);
+  uint16_t crc = calculate_crc_(pkt + 20, 16);
+  pkt[36] = crc & 0xFF;
+  pkt[37] = crc >> 8;
+  log_hex_buffer("-> Restart", pkt, sizeof(pkt));
+  if (this->tcp_client_ && this->tcp_client_->space() > sizeof(pkt)) {
+    this->tcp_client_->add(reinterpret_cast<const char *>(pkt), sizeof(pkt));
+    this->tcp_client_->send();
+  } else {
+    ESP_LOGW(TAG, "TCP buffer full or client not ready");
+    if (this->tcp_client_) this->tcp_client_->close();
+  }
+}
+void LuxpowerSNAComponent::service_reset_settings() {
+  ESP_LOGI(TAG, "service_reset_settings called");
+  // Send a reset settings command packet (device function 0x12 as example)
+  uint8_t pkt[38] = {
+    0xA1, 0x1A,       // Prefix
+    0x02, 0x00,       // Protocol version 2
+    0x20, 0x00,       // Frame length (32)
+    0x01,             // Address
+    0xC2,             // Function (TRANSLATED_DATA)
+    // Dongle serial (10 bytes) - filled below
+    0,0,0,0,0,0,0,0,0,0,
+    0x12, 0x00,       // Data length (18)
+    // Data frame starts here
+    0x00,             // Address action
+    0x12,             // Device function (RESET_SETTINGS, example)
+    // Inverter serial (10 bytes) - filled below
+    0,0,0,0,0,0,0,0,0,0,
+    // Register and value (not used for reset, set to 0)
+    0x00, 0x00, 0x00, 0x00
+  };
+  memcpy(pkt + 8, this->dongle_serial_.c_str(), 10);
+  memcpy(pkt + 22, this->inverter_serial_.c_str(), 10);
+  uint16_t crc = calculate_crc_(pkt + 20, 16);
+  pkt[36] = crc & 0xFF;
+  pkt[37] = crc >> 8;
+  log_hex_buffer("-> Reset Settings", pkt, sizeof(pkt));
+  if (this->tcp_client_ && this->tcp_client_->space() > sizeof(pkt)) {
+    this->tcp_client_->add(reinterpret_cast<const char *>(pkt), sizeof(pkt));
+    this->tcp_client_->send();
+  } else {
+    ESP_LOGW(TAG, "TCP buffer full or client not ready");
+    if (this->tcp_client_) this->tcp_client_->close();
+  }
+}
+void LuxpowerSNAComponent::service_sync_time() {
+  ESP_LOGI(TAG, "service_sync_time called");
+  // Send a sync time command packet (device function 0x13 as example)
+  uint8_t pkt[38] = {
+    0xA1, 0x1A,       // Prefix
+    0x02, 0x00,       // Protocol version 2
+    0x20, 0x00,       // Frame length (32)
+    0x01,             // Address
+    0xC2,             // Function (TRANSLATED_DATA)
+    // Dongle serial (10 bytes) - filled below
+    0,0,0,0,0,0,0,0,0,0,
+    0x12, 0x00,       // Data length (18)
+    // Data frame starts here
+    0x00,             // Address action
+    0x13,             // Device function (SYNC_TIME, example)
+    // Inverter serial (10 bytes) - filled below
+    0,0,0,0,0,0,0,0,0,0,
+    // Register and value (not used for sync time, set to 0)
+    0x00, 0x00, 0x00, 0x00
+  };
+  memcpy(pkt + 8, this->dongle_serial_.c_str(), 10);
+  memcpy(pkt + 22, this->inverter_serial_.c_str(), 10);
+  uint16_t crc = calculate_crc_(pkt + 20, 16);
+  pkt[36] = crc & 0xFF;
+  pkt[37] = crc >> 8;
+  log_hex_buffer("-> Sync Time", pkt, sizeof(pkt));
+  if (this->tcp_client_ && this->tcp_client_->space() > sizeof(pkt)) {
+    this->tcp_client_->add(reinterpret_cast<const char *>(pkt), sizeof(pkt));
+    this->tcp_client_->send();
+  } else {
+    ESP_LOGW(TAG, "TCP buffer full or client not ready");
+    if (this->tcp_client_) this->tcp_client_->close();
+  }
+}
+void LuxpowerSNAComponent::service_refresh_data() {
+  ESP_LOGI(TAG, "service_refresh_data called");
+  // Send a refresh data command packet (device function 0x14 as example)
+  uint8_t pkt[38] = {
+    0xA1, 0x1A,       // Prefix
+    0x02, 0x00,       // Protocol version 2
+    0x20, 0x00,       // Frame length (32)
+    0x01,             // Address
+    0xC2,             // Function (TRANSLATED_DATA)
+    // Dongle serial (10 bytes) - filled below
+    0,0,0,0,0,0,0,0,0,0,
+    0x12, 0x00,       // Data length (18)
+    // Data frame starts here
+    0x00,             // Address action
+    0x14,             // Device function (REFRESH_DATA, example)
+    // Inverter serial (10 bytes) - filled below
+    0,0,0,0,0,0,0,0,0,0,
+    // Register and value (not used for refresh, set to 0)
+    0x00, 0x00, 0x00, 0x00
+  };
+  memcpy(pkt + 8, this->dongle_serial_.c_str(), 10);
+  memcpy(pkt + 22, this->inverter_serial_.c_str(), 10);
+  uint16_t crc = calculate_crc_(pkt + 20, 16);
+  pkt[36] = crc & 0xFF;
+  pkt[37] = crc >> 8;
+  log_hex_buffer("-> Refresh Data", pkt, sizeof(pkt));
+  if (this->tcp_client_ && this->tcp_client_->space() > sizeof(pkt)) {
+    this->tcp_client_->add(reinterpret_cast<const char *>(pkt), sizeof(pkt));
+    this->tcp_client_->send();
+  } else {
+    ESP_LOGW(TAG, "TCP buffer full or client not ready");
+    if (this->tcp_client_) this->tcp_client_->close();
+  }
+}
+
+/**
+ * Register write implementation for inverter control.
+ * This constructs and sends a packet to write a value to a register.
+ */
+void LuxpowerSNAComponent::write_register(uint16_t reg, uint16_t value, uint16_t bitmask) {
+  ESP_LOGI(TAG, "write_register: reg=0x%04X, value=0x%04X, bitmask=0x%04X", reg, value, bitmask);
+
+  // Packet structure based on protocol (similar to request_bank_, but for write)
+  uint8_t pkt[38] = {
+    0xA1, 0x1A,       // Prefix
+    0x02, 0x00,       // Protocol version 2
+    0x20, 0x00,       // Frame length (32)
+    0x01,             // Address
+    0xC2,             // Function (TRANSLATED_DATA)
+    // Dongle serial (10 bytes) - filled below
+    0,0,0,0,0,0,0,0,0,0,
+    0x12, 0x00,       // Data length (18)
+    // Data frame starts here
+    0x00,             // Address action
+    0x05,             // Device function (WRITE_HOLD)
+    // Inverter serial (10 bytes) - filled below
+    0,0,0,0,0,0,0,0,0,0,
+    // Register and value
+    static_cast<uint8_t>(reg), static_cast<uint8_t>(reg >> 8), // Register (low, high)
+    static_cast<uint8_t>(value), static_cast<uint8_t>(value >> 8) // Value (low, high)
+  };
+
+  // Copy serial numbers
+  memcpy(pkt + 8, this->dongle_serial_.c_str(), 10);
+  memcpy(pkt + 22, this->inverter_serial_.c_str(), 10);
+
+  // Calculate CRC for data frame portion only (16 bytes)
+  uint16_t crc = calculate_crc_(pkt + 20, 16);
+  pkt[36] = crc & 0xFF;
+  pkt[37] = crc >> 8;
+
+  log_hex_buffer("-> Write Register", pkt, sizeof(pkt));
+
+  if (this->tcp_client_ && this->tcp_client_->space() > sizeof(pkt)) {
+    this->tcp_client_->add(reinterpret_cast<const char *>(pkt), sizeof(pkt));
+    this->tcp_client_->send();
+  } else {
+    ESP_LOGW(TAG, "TCP buffer full or client not ready");
+    if (this->tcp_client_) this->tcp_client_->close();
+  }
+}
+
+void LuxpowerSNAComponent::set_all_entities_unavailable_() {
+  ESP_LOGW(TAG, "Marking all entities unavailable");
+  for (auto &kv : float_sensors_) {
+    if (kv.second) kv.second->publish_state(NAN);
+  }
+  for (auto &kv : string_sensors_) {
+    if (kv.second) kv.second->publish_state("");
+  }
+  for (auto &kv : switches_) {
+    if (kv.second) kv.second->publish_state(false);
+  }
+  for (auto &kv : numbers_) {
+    if (kv.second) kv.second->publish_state(NAN);
+  }
+  // Buttons and time entities typically do not have availability, but could be extended if needed
+}
+
+void LuxpowerSNAComponent::set_all_entities_available_() {
+  ESP_LOGD(TAG, "Marking all entities available");
+  // No-op for now; entities will be updated on next data receipt
+}
+
 }  // namespace luxpower_sna
 }  // namespace esphome
