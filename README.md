@@ -69,33 +69,38 @@ time:
     name: "Inverter Time"
 ```
 
-## Services
+## Writing/Changing Inverter Values
 
-You can trigger the following services via ESPHome or Home Assistant:
-- `reconnect`
-- `restart`
-- `reset_settings`
-- `sync_time`
-- `refresh_data`
-- `write_register` (custom service for direct register writes)
+To write or change inverter values (like in the Python integration), use ESPHome's `lambda` actions in your YAML. This calls your C++ component's `write_register` method directly.
 
-### Example: Write Register from YAML
-
-You can call the `write_register` service from ESPHome automations or Home Assistant scripts:
+### Example: Set a Register from YAML
 
 ```yaml
-# Example: Set charge voltage register to 54.0 (scaled by 10)
-script:
-  - id: set_charge_voltage
-    then:
-      - service: luxpower_sna.write_register
-        data:
-          register: 0x20
-          value: 540
-          bitmask: 0
+button:
+  - platform: template
+    name: "Set Charge Voltage"
+    on_press:
+      - lambda: |-
+          id(luxpower_sna_component).write_register(0x20, 540, 0);  # Set register 0x20 to 54.0 (scaled by 10)
 ```
 
-You can use this in automations, scripts, or call it from the Home Assistant UI.
+You can use this approach in automations, scripts, or with template numbers/switches for more advanced control.
+
+### Example: Template Number for Writable Value
+
+```yaml
+number:
+  - platform: template
+    name: "Charge Voltage"
+    min_value: 48.0
+    max_value: 58.0
+    step: 0.1
+    set_action:
+      - lambda: |-
+          id(luxpower_sna_component).write_register(0x20, (uint16_t)(x * 10), 0);
+```
+
+This makes it easy to expose writable values in Home Assistant or ESPHome UI.
 
 ## Testing
 
