@@ -370,11 +370,6 @@ void LuxpowerSNAComponent::process_next_string_() {
   });
 }
   
-// Register write interface (stub)
-void LuxpowerSNAComponent::write_register(uint16_t reg, uint16_t value, uint16_t bitmask) {
-  ESP_LOGI(TAG, "write_register called: reg=0x%04X, value=0x%04X, bitmask=0x%04X", reg, value, bitmask);
-  // TODO: Implement packet construction and sending for register write
-}
 
 // Service helpers (stubs)
 void LuxpowerSNAComponent::service_reconnect() {
