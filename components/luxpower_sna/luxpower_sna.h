@@ -304,6 +304,9 @@ class LuxpowerSNAComponent : public PollingComponent {
   // Event/state management
   void set_all_entities_unavailable_();
   void set_all_entities_available_();
+
+  // Custom service for register write (if supported by ESPHome)
+  void service_write_register_(int reg, int value, int bitmask);
 };
 
 
