@@ -9,6 +9,6 @@ ForcedChargeSwitch = luxpower_ns.class_("ForcedChargeSwitch", switch.Switch, cg.
 CONFIG_SCHEMA = switch.switch_schema(ForcedChargeSwitch)
 
 async def to_code(config):
-    var = await cg.new_Pvariable(config[CONF_ID])
+    var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
     await switch.register_switch(var, config)

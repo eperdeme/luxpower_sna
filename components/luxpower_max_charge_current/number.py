@@ -9,6 +9,6 @@ MaxChargeCurrentNumber = luxpower_ns.class_("MaxChargeCurrentNumber", number.Num
 CONFIG_SCHEMA = number.number_schema(MaxChargeCurrentNumber)
 
 async def to_code(config):
-    var = await cg.new_Pvariable(config[CONF_ID])
+    var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
     await number.register_number(var, config)
