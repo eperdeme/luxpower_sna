@@ -1,19 +1,20 @@
 # LuxPower SNA ESPHome Integration
 
-This ESPHome custom component provides full-featured integration for LuxPower inverters, ported from the Home Assistant Python integration. It supports sensors, switches, numbers, buttons, and time entities, as well as service helpers for device control and robust state management.
+This ESPHome custom component provides native, user-friendly platforms for LuxPower inverters. All controls are available as first-class ESPHome entities—no lambda or custom registration required.
 
 ## Features
 
-- Live sensor readings (voltages, currents, power, energy, temperatures, etc.)
-- Switches for inverter features (with bitmask support)
-- Number entities for setpoints (voltage, current, percentage, etc., with scaling)
-- Button entities for actions (reconnect, restart, reset, sync time, refresh)
-- Time entity for inverter time synchronization
-- Service helpers for reconnect, restart, reset settings, sync time, and refresh data
-- Robust error handling and state management (entities marked unavailable on comms failure)
-- Test scaffold using GoogleTest
+- Native ESPHome platforms for:
+  - AC Charge Enable (switch)
+  - Max Charge Current (number)
+  - Forced Charge (switch)
+  - Battery SOC Target (number)
+  - System Restart (button)
+- Simple YAML configuration
+- No register/bitmask knowledge required for users
+- Full compatibility with ESPHome’s new requirements
 
-## Example ESPHome YAML
+## Example YAML
 
 ```yaml
 esphome:
@@ -30,93 +31,44 @@ wifi:
 
 logger:
 
-# Example sensor
-sensor:
-  - platform: luxpower_sna
-    id: pv1_voltage
-    name: "PV1 Voltage"
-
-# Example switch
 switch:
-  - platform: luxpower_sna
-    id: inverter_enable
-    name: "Inverter Enable"
-    register: 0x10
-    bitmask: 0x01
+  - platform: luxpower_ac_charge
+    name: "AC Charge Enable"
+  - platform: luxpower_forced_charge
+    name: "Forced Charge"
 
-# Example number
 number:
-  - platform: luxpower_sna
-    id: charge_voltage
-    name: "Charge Voltage"
-    register: 0x20
-    min_value: 48.0
-    max_value: 58.0
-    step: 0.1
-    scale: 10.0
+  - platform: luxpower_max_charge_current
+    name: "Max Charge Current"
+    min_value: 0
+    max_value: 100
+    step: 1
+  - platform: luxpower_battery_soc
+    name: "Battery SOC Target"
+    min_value: 0
+    max_value: 100
+    step: 1
 
-# Example button
 button:
-  - platform: luxpower_sna
-    id: reconnect
-    name: "Reconnect"
-    action: reconnect
-
-# Example time
-time:
-  - platform: luxpower_sna
-    id: inverter_time
-    name: "Inverter Time"
+  - platform: luxpower_system_restart
+    name: "System Restart"
 ```
 
-## Writing/Changing Inverter Values
+## Register Reference
 
-To write or change inverter values (like in the Python integration), use ESPHome's `lambda` actions in your YAML. This calls your C++ component's `write_register` method directly.
+See [`CONTROL_REGISTERS.md`](CONTROL_REGISTERS.md) for a full list of supported controls, register numbers, bitmasks, and value meanings.
 
-### Example: Set a Register from YAML
+## How it Works
 
-```yaml
-button:
-  - platform: template
-    name: "Set Charge Voltage"
-    on_press:
-      - lambda: |-
-          id(luxpower_sna_component).write_register(0x20, 540, 0);  # Set register 0x20 to 54.0 (scaled by 10)
-```
-
-You can use this approach in automations, scripts, or with template numbers/switches for more advanced control.
-
-### Example: Template Number for Writable Value
-
-```yaml
-number:
-  - platform: template
-    name: "Charge Voltage"
-    min_value: 48.0
-    max_value: 58.0
-    step: 0.1
-    set_action:
-      - lambda: |-
-          id(luxpower_sna_component).write_register(0x20, (uint16_t)(x * 10), 0);
-```
-
-This makes it easy to expose writable values in Home Assistant or ESPHome UI.
-
-## Testing
-
-A basic test scaffold is provided in `test_luxpower_sna.cpp` using GoogleTest. To run tests:
-
-```sh
-g++ -std=c++17 -Icomponents -I. test_luxpower_sna.cpp -lgtest -lpthread -o test_luxpower_sna
-./test_luxpower_sna
-```
+- Each control is implemented as a native ESPHome platform.
+- No lambda or custom registration is needed.
+- All controls are available in Home Assistant and the ESPHome dashboard.
 
 ## Troubleshooting
 
-- Ensure your ESPHome device has network access to the inverter.
-- If entities are marked unavailable, check network and inverter status.
-- Use the logger for detailed debug output.
+- If a platform is not found, ensure you have the latest ESPHome and that your `external_components` source is correct.
+- For advanced usage or to add more controls, see the register reference.
 
 ---
 
-For advanced usage, see the source code and comments.
+This integration is future-proof, user-friendly, and ready for the next generation of ESPHome.

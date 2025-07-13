@@ -1,0 +1,31 @@
+# ESPHome external_components manifest for LuxPower SNA
+
+name: "LuxPower SNA"
+url: "https://github.com/your-repo/luxpower_sna"
+maintainer: "Your Name <your@email.com>"
+description: "Native ESPHome platforms for LuxPower inverter controls"
+
+components:
+  - platform: luxpower_ac_charge
+    files:
+      - luxpower_sna/ac_charge_switch.h
+      - luxpower_sna/ac_charge_switch.cpp
+      - luxpower_sna/ac_charge_switch_platform.h
+  - platform: luxpower_max_charge_current
+    files:
+      - luxpower_sna/max_charge_current_number.h
+      - luxpower_sna/max_charge_current_number_platform.h
+  - platform: luxpower_forced_charge
+    files:
+      - luxpower_sna/forced_charge_switch.h
+      - luxpower_sna/forced_charge_switch_platform.h
+  - platform: luxpower_battery_soc
+    files:
+      - luxpower_sna/battery_soc_number.h
+      - luxpower_sna/battery_soc_number_platform.h
+  - platform: luxpower_system_restart
+    files:
+      - luxpower_sna/system_restart_button.h
+      - luxpower_sna/system_restart_button_platform.h
+  - register:
+      - luxpower_sna/register.h
